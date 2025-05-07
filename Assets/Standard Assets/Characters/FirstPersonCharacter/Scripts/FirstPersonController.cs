@@ -3,6 +3,9 @@ using UnityEngine;
 using UnityStandardAssets.CrossPlatformInput;
 using UnityStandardAssets.Utility;
 using Random = UnityEngine.Random;
+using UnityEngine.UI;
+using UnityEngine.SceneManagement;
+
 
 namespace UnityStandardAssets.Characters.FirstPerson
 {
@@ -27,6 +30,26 @@ namespace UnityStandardAssets.Characters.FirstPerson
         [SerializeField] private AudioClip[] m_FootstepSounds;    // an array of footstep sounds that will be randomly selected from.
         [SerializeField] private AudioClip m_JumpSound;           // the sound played when character leaves the ground.
         [SerializeField] private AudioClip m_LandSound;           // the sound played when character touches back on ground.
+
+        [SerializeField] private AudioClip m_CoinPickupSound; // Coin Pickup sound thing
+        [SerializeField] private int m_CoinsCollected = 0; // counter for coins
+
+        // working on Ambient Noise
+        [Header("Ambient Sound Settings)")]
+        [SerializeField] private AudioClip m_DesertAmbientSound;
+        [SerializeField] [Range(0, 1)] private float m_AmbientVolume = 0.4f;
+        [SerializeField] private float m_AmbientFadeInTime = 3f;
+        private AudioSource m_AmbientAudioSource;
+        private float m_CurrentAmbientVolume;
+
+        // Setting up the Coin System
+        [Header("Coin System")]
+        [SerializeField] private Text coinText;
+        [SerializeField] private Text winText;
+        [SerializeField] private int coinsToWin = 15;
+        private int currentCoins = 0;
+
+
 
         private Camera m_Camera;
         private bool m_Jump;
@@ -55,6 +78,22 @@ namespace UnityStandardAssets.Characters.FirstPerson
             m_Jumping = false;
             m_AudioSource = GetComponent<AudioSource>();
 			m_MouseLook.Init(transform , m_Camera.transform);
+
+
+            // Ambient sound setup
+            m_AmbientAudioSource = gameObject.AddComponent<AudioSource>();
+            m_AmbientAudioSource.clip = m_DesertAmbientSound;
+            m_AmbientAudioSource.loop = true;
+            m_AmbientAudioSource.spatialBlend = 0;
+            m_AmbientAudioSource.volume = 0;
+            m_AmbientAudioSource.Play();
+
+            //Coin System
+            if (winText != null)
+            {
+                winText.gameObject.SetActive(false);
+            }
+            UpdateCoinText();
         }
 
 
@@ -81,6 +120,14 @@ namespace UnityStandardAssets.Characters.FirstPerson
             }
 
             m_PreviouslyGrounded = m_CharacterController.isGrounded;
+
+
+            // Ambient Sound Setup
+            if (m_AmbientAudioSource.volume < m_AmbientVolume)
+            {
+                m_AmbientAudioSource.volume = Mathf.MoveTowards(m_AmbientAudioSource.volume, m_AmbientVolume, Time.deltaTime / m_AmbientFadeInTime);
+            }
+
         }
 
 
@@ -255,5 +302,54 @@ namespace UnityStandardAssets.Characters.FirstPerson
             }
             body.AddForceAtPosition(m_CharacterController.velocity*0.1f, hit.point, ForceMode.Impulse);
         }
+
+        private void OnTriggerEnter(Collider other)
+        {
+             if (other.CompareTag("Pickup"))
+            {
+                CollectCoin(other.gameObject);
+            
+            if (m_CoinPickupSound != null)
+            {
+                m_AudioSource.PlayOneShot(m_CoinPickupSound);
+            }
+
+            m_CoinsCollected++;
+                Debug.Log("Coins collected: " + m_CoinsCollected);
+
+                Destroy(other.gameObject);
+            }
+
+
+        }
+
+        private void CollectCoin(GameObject coin)
+        {
+            // Play coin sound
+            if (m_CoinPickupSound != null)
+            {
+                m_AudioSource.PlayOneShot(m_CoinPickupSound);
+            }
+
+            // Increment and update UI
+            currentCoins++;
+            UpdateCoinText();
+
+            // Destroy the coin
+            Destroy(coin);
+
+            // Check for win condition
+            
+        }
+
+        private void UpdateCoinText()
+        {
+            if (coinText != null)
+            {
+                coinText.text = $"Coins: {currentCoins:00}/{coinsToWin:00}";
+            }
+        }
+
+        
     }
 }
